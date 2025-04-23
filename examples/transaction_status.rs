@@ -1,0 +1,49 @@
+use mpesa_daraja::mpesa::MpesaClient;
+
+#[tokio::main]
+async fn main() {
+
+    // // ideally
+    // dotenv().ok();
+
+    // let consumer_key = env::var("CONSUMER_KEY").expect("Missing CONSUMER_KEY");
+    // let consumer_secret = env::var("CONSUMER_SECRET").expect("Missing CONSUMER_SECRET");
+    // let initiator_password = env::var("INITIATOR_PASSWORD").expect("Missing INITIATOR_PASSWORD");
+    // let cert_path = env::var("CERT_PATH").unwrap_or("src/certs/production.cer".to_string());
+    // let short_code = env::var("SHORT_CODE").expect("Missing SHORT_CODE");
+    // let initiator_name = env::var("INITIATOR_NAME").expect("Missing INITIATOR_NAME");
+    // let result_url = env::var("RESULT_URL").expect("Missing RESULT_URL");
+    // let queue_timeout_url = env::var("QUEUE_TIMEOUT_URL").expect("Missing QUEUE_TIMEOUT_URL");
+
+    // hardcoded for testing
+    let consumer_key = "xxxxxxxxxxxxx";
+    let consumer_secret = "xxxxxxxxxxxxxx";
+    let initiator_password = "xxxxxxxxxxxxx";
+    let cert_path = "src/certs/production.cer"; // your path to production.cer or sandbox.cer
+    let short_code = "xxxxxxx";
+    let initiator_name = "xxx";
+    let result_url = "https://xxxx.xx"; // your url
+    let queue_timeout_url = "https://xxxx.xx"; // your url
+
+    let client = MpesaClient::new(consumer_key, consumer_secret, "production");
+
+    let security_credential = MpesaClient::generate_security_credential(initiator_password, true, Some(cert_path))
+        .expect("Failed to generate security credential");
+
+    match client.check_transaction_status(
+        initiator_name,
+        &security_credential,
+        "TD81USLT4J", // transaction_id
+        short_code,
+        "Check Status",
+        result_url,
+        queue_timeout_url,
+        "Test Occasion",
+    ).await {
+        Ok(response) => {
+            println!("Transaction Status Response: {}", response.response_description);
+            println!("Conversation ID: {:?}", response.conversation_id);
+        }
+        Err(e) => println!("Error checking transaction status: {}", e),
+    }
+}

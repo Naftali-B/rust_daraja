@@ -1,0 +1,18 @@
+[package]
+name = "mpesa_daraja"
+version = "0.1.0"
+edition = "2021"
+description = "A Rust library for interacting with the Safaricom MPESA Daraja API"
+license = "MIT"
+
+[dependencies]
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+base64 = "0.21"
+chrono = "0.4"
+tokio = { version = "1", features = ["full"] } # For async API calls
+openssl = { version = "0.10", features = [] } # you may need to set path to your OpenSSL
+# dotenv = "0.15" # when using env variables. Then put your secrets in a .env file and add the .env to .gitignore
+
+#hex = "0.4" # For hex encoding debug output

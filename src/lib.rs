@@ -1,3 +1,4 @@
+// src/lib.rs
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use base64::{Engine as _, engine::general_purpose};
@@ -71,12 +72,14 @@ pub mod mpesa {
     }
 
     /// Error response from any MPESA API call.
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Debug)]
     pub struct ErrorResponse {
-        #[serde(rename = "requestId")]
-        pub request_id: String,
+        #[serde(rename = "responseId", alias = "requestId")]
+        pub response_id: Option<String>,        // Support both field names with Option
+    
         #[serde(rename = "errorCode")]
         pub error_code: String,
+    
         #[serde(rename = "errorMessage")]
         pub error_message: String,
     }
@@ -293,7 +296,9 @@ pub mod mpesa {
             let access_token = self.get_access_token().await?;
 
             let timestamp = Utc::now().format("%Y%m%d%H%M%S").to_string();
-            let password = general_purpose::STANDARD.encode(format!("{}{}{}", short_code, passkey, timestamp));
+            let password = general_purpose::STANDARD.encode(
+                format!("{}{}{}", short_code, passkey, timestamp)
+            );
 
             let url = if self.environment == "sandbox" {
                 "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
@@ -323,16 +328,30 @@ pub mod mpesa {
                 .await?;
 
             let text = response.text().await?;
-            if text.contains("errorCode") {
-                let error: ErrorResponse = serde_json::from_str(&text)?;
+
+            // Log raw response (very useful for debugging)
+            tracing::info!("M-Pesa STK Push Raw Response: {}", text);
+
+            // Try Success Response First
+            match serde_json::from_str::<StkPushResponse>(&text) {
+                Ok(stk) if stk.response_code == "0" => {
+                    return Ok(stk);
+                }
+                _ => {}
+            }
+
+            // Try to parse as error response
+            if let Ok(err) = serde_json::from_str::<ErrorResponse>(&text) {
                 return Err(format!(
-                    "API Error: {} - {}",
-                    error.error_code, error.error_message
+                    "M-Pesa Error {}: {} (Response ID: {})",
+                    err.error_code, 
+                    err.error_message, 
+                    err.response_id.unwrap_or_default()
                 ).into());
             }
 
-            let stk_response: StkPushResponse = serde_json::from_str(&text)?;
-            Ok(stk_response)
+            // Fallback
+            Err(format!("Unknown M-Pesa response: {}", text).into())
         }
 
         /// Generates a security credential for B2C, balance, and transaction status APIs.
